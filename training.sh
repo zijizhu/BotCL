@@ -1,6 +1,6 @@
 python main_contrast.py \
---num_classes 50 \
---num_cpt 20 \
+--num_classes 200 \
+--num_cpt 50 \
 --base_model resnet18 \
 --lr 0.0001 \
 --epoch 60 \
