@@ -6,7 +6,7 @@ python main_contrast.py \
 --epoch 60 \
 --lr_drop 40 \
 --dataset CUB200 \
---dataset_dir "your dir" \
+--dataset_dir "datasets" \
 --weak_supervision_bias 0.1 \
 --quantity_bias 0.1 \
 --distinctiveness_bias 0.05 \
