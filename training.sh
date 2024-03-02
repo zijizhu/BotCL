@@ -1,3 +1,15 @@
+# Pretraining
+python main_contrast.py \
+--num_classes 200 \
+--num_cpt 50 \
+--base_model resnet18 \
+--lr 0.0001 \
+--epoch 60 \
+--lr_drop 40 \
+--pre_train True \
+--dataset CUB200 \
+--dataset_dir "datasets"
+
 python main_contrast.py \
 --num_classes 200 \
 --num_cpt 50 \
