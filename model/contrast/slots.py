@@ -16,8 +16,8 @@ class ScouterAttention(nn.Module):
         self.scale = dim ** -0.5
 
         # random seed init
-        slots_mu = nn.Parameter(torch.randn(1, 1, dim))
-        slots_sigma = nn.Parameter(torch.abs(torch.randn(1, 1, dim)))
+        slots_mu = torch.randn(1, 1, dim)
+        slots_sigma = torch.abs(torch.randn(1, 1, dim))
         mu = slots_mu.expand(1, self.num_slots, -1)
         sigma = slots_sigma.expand(1, self.num_slots, -1)
         self.initial_slots = nn.Parameter(torch.normal(mu, sigma))
@@ -42,8 +42,8 @@ class ScouterAttention(nn.Module):
             q = slots
 
             dots = torch.einsum('bid,bjd->bij', q, k) * self.scale
-            dots = torch.div(dots, dots.sum(2).expand_as(dots.permute([2, 0, 1])).permute([1, 2, 0])) * \
-                   dots.sum(2).sum(1).expand_as(dots.permute([1, 2, 0])).permute([2, 0, 1])
+            scale_fct = dots.sum(2).sum(1)[:, None, None].expand_as(dots)
+            dots = torch.div(dots, dots.sum(2).unsqueeze(-1).expand_as(dots)) * scale_fct
             attn = torch.sigmoid(dots)
 
             # print(torch.max(attn))

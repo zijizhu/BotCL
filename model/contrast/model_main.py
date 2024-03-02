@@ -1,9 +1,61 @@
 from timm.models import create_model
 import torch
+import numpy as np
 import torch.nn.functional as F
 import torch.nn as nn
 from model.contrast.slots import ScouterAttention, vis
 from model.contrast.position_encode import build_position_encoding
+
+def get_emb(sin_inp):
+    """
+    Gets a base embedding for one dimension with sin and cos intertwined
+    """
+    emb = torch.stack((sin_inp.sin(), sin_inp.cos()), dim=-1)
+    return torch.flatten(emb, -2, -1)
+
+class PositionalEncoding2D(nn.Module):
+    def __init__(self, channels):
+        """
+        :param channels: The last dimension of the tensor you want to apply pos emb to.
+        """
+        super(PositionalEncoding2D, self).__init__()
+        print('Using custom PE2D')
+        self.org_channels = channels
+        channels = int(np.ceil(channels / 4) * 2)
+        self.channels = channels
+        inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels))
+        self.register_buffer("inv_freq", inv_freq)
+        self.register_buffer("cached_penc", None, persistent=False)
+
+    def forward(self, tensor):
+        """
+        :param tensor: A 4d tensor of size (batch_size, x, y, ch)
+        :return: Positional Encoding Matrix of size (batch_size, x, y, ch)
+        """
+        if len(tensor.shape) != 4:
+            raise RuntimeError("The input tensor has to be 4d!")
+
+        if self.cached_penc is not None and self.cached_penc.shape == tensor.shape:
+            return self.cached_penc
+
+        self.cached_penc = None
+        batch_size, x, y, orig_ch = tensor.shape
+        pos_x = torch.arange(x, device=tensor.device, dtype=self.inv_freq.dtype)
+        pos_y = torch.arange(y, device=tensor.device, dtype=self.inv_freq.dtype)
+        sin_inp_x = torch.einsum("i,j->ij", pos_x, self.inv_freq)
+        sin_inp_y = torch.einsum("i,j->ij", pos_y, self.inv_freq)
+        emb_x = get_emb(sin_inp_x).unsqueeze(1)
+        emb_y = get_emb(sin_inp_y)
+        emb = torch.zeros(
+            (x, y, self.channels * 2),
+            device=tensor.device,
+            dtype=tensor.dtype,
+        )
+        emb[:, :, : self.channels] = emb_x
+        emb[:, :, self.channels : 2 * self.channels] = emb_y
+
+        self.cached_penc = emb[None, :, :, :orig_ch].repeat(tensor.shape[0], 1, 1, 1)
+        return self.cached_penc
 
 
 class Identical(nn.Module):
@@ -41,14 +93,14 @@ class MainModel(nn.Module):
         hidden_dim = 128
         num_concepts = args.num_cpt
         num_classes = args.num_classes
-        self.back_bone = load_backbone(args)
+        self.back_bone = create_model(args.base_model, pretrained=True, num_classes=args.num_classes)
         self.activation = nn.Tanh()
         self.vis = vis
 
         if not self.pre_train:
             self.conv1x1 = nn.Conv2d(self.num_features, hidden_dim, kernel_size=(1, 1), stride=(1, 1))
             self.norm = nn.BatchNorm2d(hidden_dim)
-            self.position_emb = build_position_encoding('sine', hidden_dim=hidden_dim)
+            self.position_emb = PositionalEncoding2D(hidden_dim)
             self.slots = ScouterAttention(args, hidden_dim, num_concepts, vis=self.vis)
             self.scale = 1
             self.cls = torch.nn.Linear(num_concepts, num_classes)
@@ -57,7 +109,7 @@ class MainModel(nn.Module):
             self.drop_rate = 0
 
     def forward(self, x, weight=None, things=None):
-        x = self.back_bone(x)
+        x = self.back_bone.forward_features(x)
         features = x
         # x = x.view(x.size(0), self.num_features, self.feature_size, self.feature_size)
 
@@ -114,5 +166,3 @@ class MainModel2(nn.Module):
 #     pred, out, att_loss = model(inp)
 #     print(pred.shape)
 #     print(out.shape)
-
-
