@@ -12,7 +12,6 @@ class ScouterAttention(nn.Module):
         self.num_slots = num_concept
         self.iters = iters
         self.eps = eps
-        # self.scale = (dim // num_concept) ** -0.5
         self.scale = dim ** -0.5
 
         # random seed init
@@ -46,12 +45,8 @@ class ScouterAttention(nn.Module):
             dots = torch.div(dots, dots.sum(2).unsqueeze(-1).expand_as(dots)) * scale_fct
             attn = torch.sigmoid(dots)
 
-            # print(torch.max(attn))
-            # dsfds()
-
             attn2 = attn / (attn.sum(dim=-1, keepdim=True) + self.eps)
             updates = torch.einsum('bjd,bij->bid', inputs, attn2)
-
         if self.vis:
             slots_vis_raw = attn.clone()
             vis(slots_vis_raw, "vis", self.args.feature_size, weight, things)
