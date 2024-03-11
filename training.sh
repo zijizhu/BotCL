@@ -23,3 +23,10 @@ python main_contrast.py \
 --quantity_bias 0.1 \
 --distinctiveness_bias 0.05 \
 --consistence_bias 0.01
+
+python process.py \
+--num_classes 200 \
+--num_cpt 50 \
+--base_model resnet18 \
+--dataset CUB200 \
+--dataset_dir "datasets"

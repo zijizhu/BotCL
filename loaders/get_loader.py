@@ -136,7 +136,7 @@ def load_all_imgs(args):
                 ll = int(data[i][1])
             if args.dataset == "CUB200":
                 ll -= 1
-                root = os.path.join(os.path.join(args.dataset_dir, args.dataset, "CUB_200_2011", "CUB_200_2011"), 'images', root)
+                root = os.path.join(os.path.join(args.dataset_dir, "CUB_200_2011", "CUB_200_2011"), 'images', root)
             imgs.append(root)
             labels.append(ll)
         return imgs, labels
